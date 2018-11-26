@@ -20,7 +20,12 @@ def astar(transparency, maze, start, end):
     """Returns a list of tuples as a path from the given start to the given end in the given maze"""
 
     # How long time the a star will search before giving up
-    timeout = 0.1
+    print(end)
+    if end[0] is 0 and end[1] is 0:
+        timeout = 20
+    else:
+        timeout = 2
+    print("timeout" + str(timeout))
     lim = time.time() + timeout
     # Create start and end node
     start_node = Node(None, start)
@@ -105,7 +110,7 @@ def astar(transparency, maze, start, end):
                 child.g = current_node.g + 1
             
             if transparency[child.position[0]][child.position[1]] == 0:
-                child.g = child.g*10
+                child.g = child.g+4
             
             child.h = ((child.position[0] - end_node.position[0]) ** 2) + ((child.position[1] - end_node.position[1]) ** 2)
             child.f = child.g + child.h

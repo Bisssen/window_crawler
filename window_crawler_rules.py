@@ -5,6 +5,8 @@ import numpy as np
 import tkinter as tk
 import time
 import threading
+from PIL import ImageTk, Image
+import os
 
 
 def test_dist(A, B, num):
@@ -142,6 +144,7 @@ class system_control:
         AS.win << window(transparency=MATCH.trans, location=MATCH.location),
         TEST(lambda goal : goal is "clean"))
     def clean_window(self, craw, win, tran, location, rout, pre_rou):
+        global update_dirt, dx, dy
         temp_rou = utils.unfreeze(pre_rou)
         try:
             temp_rou.remove(location)
@@ -154,16 +157,19 @@ class system_control:
         map_tran[split(location,0)][split(location,1)] = 0.0
         self.modify(rout, transparency_map=map_tran, preplanned_route=temp_rou)
         #print("Cleaning window")  
+        update_dirt = True
+        dx = split(location, 0)
+        dy = split(location, 1)
 
             
 class move:
     @Rule(
         AS.rout << route(world_map=MATCH.map, end_point=MATCH.end_point),
         window(location=MATCH.win_loc, state=MATCH.state),
-        AS.craw << crawler(goal=MATCH.goal_loc, location=MATCH.craw_loc),
+        AS.craw << crawler(name=MATCH.name, goal=MATCH.goal_loc, location=MATCH.craw_loc),
         TEST(lambda win_loc, goal_loc, craw_loc : win_loc == goal_loc and
              not craw_loc == win_loc))
-    def move_to_location(self, win_loc, craw, craw_loc, state, rout, map, end_point):
+    def move_to_location(self, win_loc, craw, craw_loc, state, rout, map, end_point, name):
         if state is "open":
             map_temp = utils.unfreeze(map)
             map_temp[split(win_loc,0)][split(win_loc,1)] = 1.0
@@ -174,21 +180,35 @@ class move:
             self.modify(craw, location=win_loc, goal="take_picture")
             print("Moving from " + str(craw_loc) + " to " + str(win_loc) +
                   "End point is: " + str(end_point))
+            print("By " +str(name))
+        global rx, ry, robot_moved, update_robot
+        rx = split(win_loc, 0)
+        ry = split(win_loc, 1)
+        robot_moved = True
+        update_robot = True
 
 class clean_windows(KnowledgeEngine, move, system_control):
 
     @DefFacts()
     def startup(self):
+        global bx
+        global by
+        global map_draw
+        global map_draw_dirt
         preplanned_route = []
-        il = 10
-        ij = 10
+        il = by
+        ij = bx
         map_temp = np.zeros([il,ij]).tolist()
+        map_draw = map_temp
         map_trans = np.ones([il,ij]).tolist()
-        yield crawler(name = "mr_roboto", location = "0,0", goal = "None")
+        map_draw_dirt = map_trans
+        yield crawler(name = "mr_roboto_1", location = "0,0", goal = "None")
+        #yield crawler(name = "mr_roboto_2", location = "0,0", goal = "None")
 
         for i in range(il):
             for j in range(ij):
-                if np.random.randint(0,6) is 1:
+                if np.random.randint(0,3) is 1:
+                    map_draw[i][j] = 1
                     yield window(location = str(i) + "," + str(j), state="open")
                 else:
                     yield window(location = str(i) + "," + str(j))
@@ -204,16 +224,21 @@ class clean_windows(KnowledgeEngine, move, system_control):
 
 class Tkinter:
     def __init__(self, world):
+        global bx
+        global by
+        self.rx_old = 0
+        self.ry_old = 0
+        self.stop_simu = False
+        self.end_all = False
         self.yellow_on = "#fbff1c"
         self.yellow_off = "#58591e"
         self.green_on = "#69f43f"
         self.green_off = "#1f4912"
         self.red_on = "#e2381d"
         self.red_off = "#4c1911"
-        self.end_all = False
         self.world = world
-        self.height = 300
-        self.lenght = 400
+        self.height = 100 * bx
+        self.lenght = 100 * by + 350
         self.start_flag = False
         self.button_height = 40
         self.button_lenght = 75
@@ -223,17 +248,88 @@ class Tkinter:
         self.top_gemometry(self.lenght, self.height, self.top)
         self.message_to_user = tk.StringVar()
         self.message_to_user.set("Status")
+        self.message_to_user_bsize = tk.StringVar()
+        self.message_to_user_bsize.set("Building Size:")
+        self.reset_simu = False
+        self.message_to_user_bsizexy = tk.StringVar()
+        self.message_to_user_bsizexy.set(str(bx)+" x "+str(by))
+        self.message_to_user_rpos = tk.StringVar()
+        self.message_to_user_rpos.set("Robot Pos:")
+        self.message_to_user_rposxy = tk.StringVar()
+        self.message_to_user_rposxy.set("("+str(0)+","+str(0)+")")
+        self.message_to_user_lp = tk.StringVar()
+        self.message_to_user_lp.set("Last Picture:")
+        self.message_to_user_pre = tk.StringVar()
+        self.message_to_user_pre.set("Predicted:")
+        self.message_to_user_preres = tk.StringVar()
+        self.message_to_user_preres.set("Birdpoop")
         self.button_text_1 = tk.StringVar()
         self.button_text_1.set("Start")
         self.button_text_2 = tk.StringVar()
         self.button_text_2.set("Stop")
         self.button_text_3 = tk.StringVar()
         self.button_text_3.set("Return home")
+        self.button_text_4 = tk.StringVar()
+        self.button_text_4.set("Reset Simulation")
+        self.button_text_5 = tk.StringVar()
+        self.button_text_5.set("Stop Simulation")
+        self.button_text_6 = tk.StringVar()
+        self.button_text_6.set("-")
+        self.button_text_7 = tk.StringVar()
+        self.button_text_7.set("+")
+        self.button_text_8 = tk.StringVar()
+        self.button_text_8.set("-")
+        self.button_text_9 = tk.StringVar()
+        self.button_text_9.set("+")
         self.label = tk.Label(textvariable=self.message_to_user)
         self.label.place(bordermode=tk.OUTSIDE, height=self.button_height,
                          width=self.button_lenght,
                          x=self.lenght-self.space*2-self.button_lenght*2,
                          y=self.space)
+        self.labelbsize = tk.Label(textvariable=self.message_to_user_bsize)
+        self.labelbsize.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght,
+                         x=self.space,
+                         y=self.space)
+        self.labelbsizexy = tk.Label(textvariable=self.message_to_user_bsizexy)
+        self.labelbsizexy.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght/2,
+                         x=self.space+self.button_lenght,
+                         y=self.space)
+        self.labelrpos = tk.Label(textvariable=self.message_to_user_rpos)
+        self.labelrpos.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght,
+                         x=self.space,
+                         y=self.space*2+self.button_height)
+        self.labelrposxy = tk.Label(textvariable=self.message_to_user_rposxy)
+        self.labelrposxy.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght/2,
+                         x=self.space+self.button_lenght,
+                         y=self.space*2+self.button_height)
+        load = Image.open('birdpoops.png')
+        resized = load.resize((128, 128),Image.ANTIALIAS)
+        render = ImageTk.PhotoImage(resized)
+        self.labelimg = tk.Label(image=render)
+        self.labelimg.image = render # Keep a reference
+        self.labelimg.place(bordermode=tk.OUTSIDE, height=self.button_height*3,
+                         width=self.button_lenght*2,
+                         x=self.space,
+                         y=self.height-self.space*2-self.button_height*3)
+        self.labellp = tk.Label(textvariable=self.message_to_user_lp)
+        self.labellp.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght,
+                         x=self.space,
+                         y=self.height-self.space*3-self.button_height*4)
+        self.labelpre = tk.Label(textvariable=self.message_to_user_pre)
+        self.labelpre.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght,
+                         x=self.space,
+                         y=self.height-self.space)
+        self.labelpre = tk.Label(textvariable=self.message_to_user_preres)
+        self.labelpre.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght,
+                         x=self.space*2+self.button_lenght,
+                         y=self.height-self.space)
         self.B1 = tk.Button(textvariable=self.button_text_1,
                             command=lambda: self.start())
         self.B1.place(bordermode=tk.OUTSIDE, height=self.button_height,
@@ -252,6 +348,42 @@ class Tkinter:
                          width=self.button_lenght*2+self.space,
                          x=self.lenght-self.space*2-self.button_lenght*2,
                          y=self.space*3+self.button_height*2)
+        self.B4 = tk.Button(textvariable=self.button_text_4,
+                            command=lambda: self.reset_sim())
+        self.B4.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght*2+self.space,
+                         x=self.lenght-self.space*2-self.button_lenght*2,
+                         y=self.height-self.space*3-self.button_height*2)
+        self.B5 = tk.Button(textvariable=self.button_text_5,
+                            command=lambda: self.stop_sim())
+        self.B5.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght*2+self.space,
+                         x=self.lenght-self.space*2-self.button_lenght*2,
+                         y=self.height-self.space*2-self.button_height)
+        self.B6 = tk.Button(textvariable=self.button_text_6,
+                            command=lambda: self.dec_x())
+        self.B6.place(bordermode=tk.OUTSIDE, height=self.space*3,
+                         width=self.space*3,
+                         x=self.button_lenght-self.space*2,
+                         y=self.button_height-self.space)
+        self.B7 = tk.Button(textvariable=self.button_text_7,
+                            command=lambda: self.inc_x())
+        self.B7.place(bordermode=tk.OUTSIDE, height=self.space*3,
+                         width=self.space*3,
+                         x=self.space*1+self.button_lenght,
+                         y=self.button_height-self.space)
+        self.B8 = tk.Button(textvariable=self.button_text_8,
+                            command=lambda: self.dec_y())
+        self.B8.place(bordermode=tk.OUTSIDE, height=self.space*3,
+                         width=self.space*3,
+                         x=self.button_lenght+self.space*7,
+                         y=self.button_height-self.space)
+        self.B9 = tk.Button(textvariable=self.button_text_9,
+                            command=lambda: self.inc_y())
+        self.B9.place(bordermode=tk.OUTSIDE, height=self.space*3,
+                         width=self.space*3,
+                         x=self.space*10+self.button_lenght,
+                         y=self.button_height-self.space)
         self.box_green = tk.Text(background=self.green_off)
         self.box_green.place(bordermode=tk.OUTSIDE, height=self.button_height/2,
                          width=self.button_lenght/4,
@@ -267,6 +399,9 @@ class Tkinter:
                          width=self.button_lenght/4,
                          x=self.lenght-self.button_lenght+self.button_lenght/4*2+
                          self.space, y=self.space+self.button_height/4)
+        self.canvas = tk.Canvas(bg="blue")
+        self.canvas.place(bordermode=tk.OUTSIDE, height=100 * bx,
+                          width=100 * by, x=self.space*15+self.button_lenght)
 
     def top_gemometry(self, w, h, top):
         ws = top.winfo_screenwidth()
@@ -292,23 +427,122 @@ class Tkinter:
     def go_home(self):
         global drop_route
         drop_route = True
-        '''
-        i = 0
-        j = 0
-        while True:
-            if i >= len(self.world.facts):
-                break
-            try:
-                print(self.world.facts[j])
-                i += 1
-            except:
-                pass
-            j += 1
-        '''
-        #print(len(self.world.facts))
-        #print(self.world.facts)
-        #self.world.modify(self.world.facts[1], name="BobbyB")
-        #print(self.world.facts)
+
+    def reset_sim(self):
+        print(self.reset_simu)
+        self.reset_simu = True
+        print(self.reset_simu)
+
+    def stop_sim(self):
+        self.top.destroy()
+        self.stop_simu = True
+
+    def dec_x(self):
+        global bx
+        global by
+        if bx > 1:
+            bx = bx - 1
+        self.message_to_user_bsizexy.set(str(bx)+" x "+str(by))
+
+
+    def inc_x(self):
+        global bx
+        global by
+        if bx < 20:
+            bx = bx + 1
+        self.message_to_user_bsizexy.set(str(bx)+" x "+str(by))
+
+    def dec_y(self):
+        global bx
+        global by
+        if by > 1:
+            by = by - 1
+        self.message_to_user_bsizexy.set(str(bx)+" x "+str(by))
+
+
+    def inc_y(self):
+        global bx
+        global by
+        if by < 20:
+            by = by + 1
+        self.message_to_user_bsizexy.set(str(bx)+" x "+str(by))
+
+    def init_map(self):
+        global map_draw, map_draw_dirt, ry, rx, bx, by
+        print(map_draw)
+        self.canvas.delete("all")
+        size = np.shape(map_draw)
+        self.x_init = 100 * 4/2-bx*30/2
+        self.y_init = self.height-by*30
+        x = self.x_init
+        y = self.y_init
+        w = size[1] * 30 + x
+        h = size[0] * 30 + y
+        coord_building = x, y, w, h
+        building = self.canvas.create_rectangle(coord_building, fill="red")
+
+        self.windows_size = (((w - x) / (size[1])) / 2)
+
+        for row in range(size[0]):
+            for i in range(size[1]):
+                x = self.x_init + (i * self.windows_size * 2) + 6
+                y = self.y_init + (row * self.windows_size * 2) + 6
+                w = self.windows_size + x
+                h = self.windows_size + y
+
+                coord_window = x, y, w, h
+
+                status_window = map_draw[row][i]
+                status_dirt = map_draw_dirt[row][i]
+
+                if status_window == 1:
+                    # for making the other line correctly
+                    coord_window_reversed = w, y, x, h
+                    if status_dirt == 1:
+                        window = self.canvas.create_rectangle(coord_window, fill="saddlebrown")
+                    elif status_dirt == 0:
+                        window = self.canvas.create_rectangle(coord_window, fill="white")
+                    window = self.canvas.create_line(coord_window, fill="black")
+                    window = self.canvas.create_line(coord_window_reversed, fill="black")
+                elif status_window == 0:
+                    if status_dirt == 1:
+                        window = self.canvas.create_rectangle(coord_window, fill="saddlebrown")
+                    else:
+                        window = self.canvas.create_rectangle(coord_window, fill="white")
+                if rx is row and ry is i:
+                    windows = self.canvas.create_oval(coord_window, fill="yellow")
+    def  map_update(self):
+        global rx, ry, dx, dy, update_robot, update_dirt
+        if update_robot:
+            x = self.x_init + (self.ry_old * self.windows_size * 2) + 6
+            y = self.y_init + (self.rx_old * self.windows_size * 2) + 6
+            w = self.windows_size + x
+            h = self.windows_size + y
+            coord_window = x, y, w, h
+            windows = self.canvas.create_rectangle(coord_window, fill="white")
+            self.rx_old = rx
+            self.ry_old = ry
+            x = self.x_init + (ry * self.windows_size * 2) + 6
+            y = self.y_init + (rx * self.windows_size * 2) + 6
+            w = self.windows_size + x
+            h = self.windows_size + y
+            coord_window = x, y, w, h
+            windows = self.canvas.create_oval(coord_window, fill="yellow")
+            update_robot = False
+        if update_dirt:
+            x = self.x_init + (dy * self.windows_size * 2) + 6
+            y = self.y_init + (dx * self.windows_size * 2) + 6
+            w = self.windows_size + x
+            h = self.windows_size + y
+            coord_window = x, y, w, h
+            windows = self.canvas.create_rectangle(coord_window, fill="white")
+            x = self.x_init + (ry * self.windows_size * 2) + 6
+            y = self.y_init + (rx * self.windows_size * 2) + 6
+            w = self.windows_size + x
+            h = self.windows_size + y
+            coord_window = x, y, w, h
+            windows = self.canvas.create_oval(coord_window, fill="yellow")
+            update_dirt = False
 
 class run_world (threading.Thread):
     def __init__(self, world, Tkinter):
@@ -317,46 +551,83 @@ class run_world (threading.Thread):
         self.world = world
 
     def run(self):
+        print("first")
         while True:
-            #time.sleep(0.1)
+            time.sleep(0.1)
             if Tkinter.start_flag:
                 world.run(1)
             if Tkinter.end_all:
                 break
 
 
+
 # Globals:  :(
 a_calculating = False
 drop_route = False
+bx = 4
+by = 4
+robot_moved = False
+rx = 0
+ry = 0
+map_draw = []
+map_draw_dirt = []
+dx = 0
+dy = 0
+update_dirt = False
+update_robot = False
+
 
 # pyknow init
 world = clean_windows()
-world.reset()
 
 Tkinter = Tkinter(world)
-
-# Thread
-thread = run_world(world, Tkinter)
-thread.start()
-
-
+Tkinter.rx_old = rx
+Tkinter.ry_old = ry
 
 while True:
-    time.sleep(0.1)
-    try:
-        Tkinter.top.update()
-        if a_calculating:
-            Tkinter.box_yellow.config(background=Tkinter.yellow_on)
-        else:
-            Tkinter.box_yellow.config(background=Tkinter.yellow_off)
-    except:
-        Tkinter.end_all = True
+    rx = 0
+    ry = 0
+    dx = 0
+    dy = 0
+    update_dirt = False
+    update_robot = False
+    Tkinter.rx_old = rx
+    Tkinter.ry_old = ry
+    Tkinter.end_all = False
+    Tkinter.reset_simu = False
+    world.reset()
+    Tkinter.init_map()
+    Tkinter.world = world
+    thread = run_world(world, Tkinter)
+    thread.start()
+    # Thread
+
+    while True:
+        Tkinter.map_update()
+        try:
+            Tkinter.top.update()
+            if a_calculating:
+                Tkinter.box_yellow.config(background=Tkinter.yellow_on)
+            else:
+                Tkinter.box_yellow.config(background=Tkinter.yellow_off)
+            if robot_moved:
+                Tkinter.message_to_user_rposxy.set("("+str(rx)+","+str(ry)+")")
+                robot_moved = False
+        except:
+            end_all = True
+            Tkinter.stop_simu = True
+            Tkinter.end_all = True
+            break
+
+        if Tkinter.reset_simu:
+            Tkinter.end_all = True
+            break
+
+    thread.join
+
+    if Tkinter.stop_simu:
         break
-   
-
-
-thread.join()
 
 
 
-    
+
