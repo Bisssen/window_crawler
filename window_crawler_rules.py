@@ -179,13 +179,17 @@ class move:
         else:
             self.modify(craw, location=win_loc, goal="take_picture")
             print("Moving from " + str(craw_loc) + " to " + str(win_loc) +
-                  "End point is: " + str(end_point))
+                  " End point is: " + str(end_point))
             print("By " +str(name))
-        global rx, ry, robot_moved, update_robot
-        rx = split(win_loc, 0)
-        ry = split(win_loc, 1)
-        robot_moved = True
-        update_robot = True
+            if (abs(split(craw_loc,0) -split(win_loc,0)) > 1 or
+                abs(split(craw_loc,1) -split(win_loc,1)) > 1):
+                print("ERROR-------------------------------"
+                      "------------------------------------")
+            global rx, ry, robot_moved, update_robot
+            rx = split(win_loc, 0)
+            ry = split(win_loc, 1)
+            robot_moved = True
+            update_robot = True
 
 class clean_windows(KnowledgeEngine, move, system_control):
 
@@ -199,7 +203,7 @@ class clean_windows(KnowledgeEngine, move, system_control):
         il = by
         ij = bx
         map_temp = np.zeros([il,ij]).tolist()
-        map_draw = map_temp
+        map_draw = np.zeros([il,ij]).tolist()
         map_trans = np.ones([il,ij]).tolist()
         map_draw_dirt = map_trans
         yield crawler(name = "mr_roboto_1", location = "0,0", goal = "None")
@@ -216,6 +220,7 @@ class clean_windows(KnowledgeEngine, move, system_control):
                     preplanned_route.append(str(i)+","+str((ij-1)-j))
                 else:
                     preplanned_route.append(str(i)+","+str(j))
+        print(map_temp)
         yield route(path = "None", end_point = preplanned_route.pop(0),
                     world_map=map_temp, transparency_map=map_trans, 
                     preplanned_route=preplanned_route)
@@ -282,126 +287,138 @@ class Tkinter:
         self.button_text_9 = tk.StringVar()
         self.button_text_9.set("+")
         self.label = tk.Label(textvariable=self.message_to_user)
-        self.label.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght,
-                         x=self.lenght-self.space*2-self.button_lenght*2,
-                         y=self.space)
         self.labelbsize = tk.Label(textvariable=self.message_to_user_bsize)
-        self.labelbsize.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght,
-                         x=self.space,
-                         y=self.space)
         self.labelbsizexy = tk.Label(textvariable=self.message_to_user_bsizexy)
-        self.labelbsizexy.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght/2,
-                         x=self.space+self.button_lenght,
-                         y=self.space)
         self.labelrpos = tk.Label(textvariable=self.message_to_user_rpos)
-        self.labelrpos.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght,
-                         x=self.space,
-                         y=self.space*2+self.button_height)
         self.labelrposxy = tk.Label(textvariable=self.message_to_user_rposxy)
-        self.labelrposxy.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght/2,
-                         x=self.space+self.button_lenght,
-                         y=self.space*2+self.button_height)
         load = Image.open('birdpoops.png')
         resized = load.resize((128, 128),Image.ANTIALIAS)
         render = ImageTk.PhotoImage(resized)
         self.labelimg = tk.Label(image=render)
         self.labelimg.image = render # Keep a reference
-        self.labelimg.place(bordermode=tk.OUTSIDE, height=self.button_height*3,
-                         width=self.button_lenght*2,
-                         x=self.space,
-                         y=self.height-self.space*2-self.button_height*3)
         self.labellp = tk.Label(textvariable=self.message_to_user_lp)
-        self.labellp.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght,
-                         x=self.space,
-                         y=self.height-self.space*3-self.button_height*4)
         self.labelpre = tk.Label(textvariable=self.message_to_user_pre)
-        self.labelpre.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght,
-                         x=self.space,
-                         y=self.height-self.space)
-        self.labelpre = tk.Label(textvariable=self.message_to_user_preres)
-        self.labelpre.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght,
-                         x=self.space*2+self.button_lenght,
-                         y=self.height-self.space)
+        self.labelpreres = tk.Label(textvariable=self.message_to_user_preres)
         self.B1 = tk.Button(textvariable=self.button_text_1,
                             command=lambda: self.start())
+        self.B2 = tk.Button(textvariable=self.button_text_2,
+                            command=lambda: self.stop())
+        self.B3 = tk.Button(textvariable=self.button_text_3,
+                            command=lambda: self.go_home())
+        self.B4 = tk.Button(textvariable=self.button_text_4,
+                            command=lambda: self.reset_sim())
+        self.B5 = tk.Button(textvariable=self.button_text_5,
+                            command=lambda: self.stop_sim())
+        self.B6 = tk.Button(textvariable=self.button_text_6,
+                            command=lambda: self.dec_x())
+        self.B7 = tk.Button(textvariable=self.button_text_7,
+                            command=lambda: self.inc_x())
+        self.B8 = tk.Button(textvariable=self.button_text_8,
+                            command=lambda: self.dec_y())
+        self.B9 = tk.Button(textvariable=self.button_text_9,
+                            command=lambda: self.inc_y())
+        self.box_green = tk.Text(background=self.green_off)
+        self.box_red = tk.Text(background=self.red_on)
+        self.box_yellow = tk.Text(background=self.yellow_off)
+        self.canvas = tk.Canvas()
+
+    def update_tkinter(self):
+        global bx, by
+        self.height = 30 * by
+        self.lenght = 30 * bx + 450
+        if self.height < 320:
+            self.height = 320
+        if self.lenght < 570:
+            self.lenght = 570
+        self.top_gemometry(self.lenght, self.height, self.top)
+        self.canvas.place(bordermode=tk.OUTSIDE, height=30 * by,
+                          width=30 * bx, x=self.lenght-(self.button_lenght*2+30*bx*1+
+                          15*self.space),
+                          y=self.height-30*by)
+        self.box_yellow.place(bordermode=tk.OUTSIDE, height=self.button_height/2,
+                              width=self.button_lenght/4,
+                              x=self.lenght-self.button_lenght+self.button_lenght/4*2+
+                              self.space, y=self.space+self.button_height/4)
+        self.box_red.place(bordermode=tk.OUTSIDE, height=self.button_height/2,
+                           width=self.button_lenght/4,
+                           x=self.lenght-self.button_lenght+self.button_lenght/4,
+                           y=self.space+self.button_height/4)
+        self.box_green.place(bordermode=tk.OUTSIDE, height=self.button_height/2,
+                             width=self.button_lenght/4,
+                             x=self.lenght-self.space-self.button_lenght,
+                             y=self.space+self.button_height/4)
+        self.B9.place(bordermode=tk.OUTSIDE, height=self.space*3,
+                      width=self.space*3,
+                      x=self.space*10+self.button_lenght,
+                      y=self.button_height-self.space)
+        self.B8.place(bordermode=tk.OUTSIDE, height=self.space*3,
+                      width=self.space*3,
+                      x=self.button_lenght+self.space*7,
+                      y=self.button_height-self.space)
+        self.B7.place(bordermode=tk.OUTSIDE, height=self.space*3,
+                      width=self.space*3,
+                      x=self.space*1+self.button_lenght,
+                      y=self.button_height-self.space)
+        self.B6.place(bordermode=tk.OUTSIDE, height=self.space*3,
+                      width=self.space*3,
+                      x=self.button_lenght-self.space*2,
+                      y=self.button_height-self.space)
+        self.B5.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                      width=self.button_lenght*2+self.space,
+                      x=self.lenght-self.space*2-self.button_lenght*2,
+                      y=self.height-self.space*2-self.button_height)
+        self.B4.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                      width=self.button_lenght*2+self.space,
+                      x=self.lenght-self.space*2-self.button_lenght*2,
+                      y=self.height-self.space*3-self.button_height*2)
+        self.B3.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                      width=self.button_lenght*2+self.space,
+                      x=self.lenght-self.space*2-self.button_lenght*2,
+                      y=self.space*3+self.button_height*2)
+        self.B2.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                      width=self.button_lenght,
+                      x=self.lenght-self.space-self.button_lenght,
+                      y=self.space*2+self.button_height)
         self.B1.place(bordermode=tk.OUTSIDE, height=self.button_height,
                          width=self.button_lenght,
                          x=self.lenght-self.space*2-self.button_lenght*2,
                          y=self.space*2+self.button_height)
-        self.B2 = tk.Button(textvariable=self.button_text_2,
-                            command=lambda: self.stop())
-        self.B2.place(bordermode=tk.OUTSIDE, height=self.button_height,
+        self.labelpreres.place(bordermode=tk.OUTSIDE, height=self.button_height,
                          width=self.button_lenght,
-                         x=self.lenght-self.space-self.button_lenght,
+                         x=self.space*2+self.button_lenght,
+                         y=self.height-self.space-self.button_height)
+        self.labelpre.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght,
+                         x=self.space,
+                         y=self.height-self.space-self.button_height)
+        self.labellp.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght,
+                         x=self.space,
+                         y=self.height-self.space*3-self.button_height*5)
+        self.labelimg.place(bordermode=tk.OUTSIDE, height=self.button_height*3,
+                         width=self.button_lenght*2,
+                         x=self.space,
+                         y=self.height-self.space*2-self.button_height*4)
+        self.labelrposxy.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght/2,
+                         x=self.space+self.button_lenght,
                          y=self.space*2+self.button_height)
-        self.B3 = tk.Button(textvariable=self.button_text_3,
-                            command=lambda: self.go_home())
-        self.B3.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght*2+self.space,
+        self.labelrpos.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght,
+                         x=self.space,
+                         y=self.space*2+self.button_height)
+        self.labelbsizexy.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght/2,
+                         x=self.space+self.button_lenght,
+                         y=self.space)
+        self.labelbsize.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght,
+                         x=self.space,
+                         y=self.space)
+        self.label.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                         width=self.button_lenght,
                          x=self.lenght-self.space*2-self.button_lenght*2,
-                         y=self.space*3+self.button_height*2)
-        self.B4 = tk.Button(textvariable=self.button_text_4,
-                            command=lambda: self.reset_sim())
-        self.B4.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght*2+self.space,
-                         x=self.lenght-self.space*2-self.button_lenght*2,
-                         y=self.height-self.space*3-self.button_height*2)
-        self.B5 = tk.Button(textvariable=self.button_text_5,
-                            command=lambda: self.stop_sim())
-        self.B5.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                         width=self.button_lenght*2+self.space,
-                         x=self.lenght-self.space*2-self.button_lenght*2,
-                         y=self.height-self.space*2-self.button_height)
-        self.B6 = tk.Button(textvariable=self.button_text_6,
-                            command=lambda: self.dec_x())
-        self.B6.place(bordermode=tk.OUTSIDE, height=self.space*3,
-                         width=self.space*3,
-                         x=self.button_lenght-self.space*2,
-                         y=self.button_height-self.space)
-        self.B7 = tk.Button(textvariable=self.button_text_7,
-                            command=lambda: self.inc_x())
-        self.B7.place(bordermode=tk.OUTSIDE, height=self.space*3,
-                         width=self.space*3,
-                         x=self.space*1+self.button_lenght,
-                         y=self.button_height-self.space)
-        self.B8 = tk.Button(textvariable=self.button_text_8,
-                            command=lambda: self.dec_y())
-        self.B8.place(bordermode=tk.OUTSIDE, height=self.space*3,
-                         width=self.space*3,
-                         x=self.button_lenght+self.space*7,
-                         y=self.button_height-self.space)
-        self.B9 = tk.Button(textvariable=self.button_text_9,
-                            command=lambda: self.inc_y())
-        self.B9.place(bordermode=tk.OUTSIDE, height=self.space*3,
-                         width=self.space*3,
-                         x=self.space*10+self.button_lenght,
-                         y=self.button_height-self.space)
-        self.box_green = tk.Text(background=self.green_off)
-        self.box_green.place(bordermode=tk.OUTSIDE, height=self.button_height/2,
-                         width=self.button_lenght/4,
-                         x=self.lenght-self.space-self.button_lenght,
-                         y=self.space+self.button_height/4)
-        self.box_red = tk.Text(background=self.red_on)
-        self.box_red.place(bordermode=tk.OUTSIDE, height=self.button_height/2,
-                         width=self.button_lenght/4,
-                         x=self.lenght-self.button_lenght+self.button_lenght/4,
-                         y=self.space+self.button_height/4)
-        self.box_yellow = tk.Text(background=self.yellow_off)
-        self.box_yellow.place(bordermode=tk.OUTSIDE, height=self.button_height/2,
-                         width=self.button_lenght/4,
-                         x=self.lenght-self.button_lenght+self.button_lenght/4*2+
-                         self.space, y=self.space+self.button_height/4)
-        self.canvas = tk.Canvas(bg="blue")
-        self.canvas.place(bordermode=tk.OUTSIDE, height=100 * bx,
-                          width=100 * by, x=self.space*15+self.button_lenght)
+                         y=self.space)
 
     def top_gemometry(self, w, h, top):
         ws = top.winfo_screenwidth()
@@ -429,9 +446,7 @@ class Tkinter:
         drop_route = True
 
     def reset_sim(self):
-        print(self.reset_simu)
         self.reset_simu = True
-        print(self.reset_simu)
 
     def stop_sim(self):
         self.top.destroy()
@@ -469,11 +484,10 @@ class Tkinter:
 
     def init_map(self):
         global map_draw, map_draw_dirt, ry, rx, bx, by
-        print(map_draw)
         self.canvas.delete("all")
         size = np.shape(map_draw)
-        self.x_init = 100 * 4/2-bx*30/2
-        self.y_init = self.height-by*30
+        self.x_init = 30 * bx/2 - bx * 30/2
+        self.y_init = 30 * by - by * 30
         x = self.x_init
         y = self.y_init
         w = size[1] * 30 + x
@@ -511,6 +525,7 @@ class Tkinter:
                         window = self.canvas.create_rectangle(coord_window, fill="white")
                 if rx is row and ry is i:
                     windows = self.canvas.create_oval(coord_window, fill="yellow")
+
     def  map_update(self):
         global rx, ry, dx, dy, update_robot, update_dirt
         if update_robot:
@@ -585,6 +600,7 @@ Tkinter.rx_old = rx
 Tkinter.ry_old = ry
 
 while True:
+    Tkinter.update_tkinter()
     rx = 0
     ry = 0
     dx = 0
