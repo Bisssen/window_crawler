@@ -19,6 +19,10 @@ class Node():
 def astar(transparency, maze, start, end):
     """Returns a list of tuples as a path from the given start to the given end in the given maze"""
 
+    print(maze[end[0]][end[1]])
+    if maze[end[0]][end[1]] == 1.0:
+        return
+
     # How long time the a star will search before giving up
     if end[0] is 0 and end[1] is 0:
         timeout = 20
