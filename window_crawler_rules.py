@@ -1,12 +1,16 @@
 from pyknow import *
 import schema
 import ProjectAstar
+import get_poop
 import numpy as np
 import tkinter as tk
 import time
 import threading
 from PIL import ImageTk, Image
 import os
+from keras.models import load_model
+import glob
+
 
 def split(A, num):
     return int(A.split(",")[num])
@@ -131,6 +135,9 @@ class system_control:
         if trans is "dirty":
             self.modify(craw, goal="clean")
             #print("Window is dirty")
+            global get_picture
+            get_picture = True
+            time.sleep(1)
         else:
             self.modify(craw, goal="None")
             #print("Window is clean")
@@ -210,7 +217,7 @@ class clean_windows(KnowledgeEngine, move, system_control):
         map_draw = np.zeros([il,ij]).tolist()
         map_trans = np.ones([il,ij]).tolist()
         map_draw_dirt = map_trans
-        yield crawler(name = "mr_roboto_1", location = "0,0", goal = "None")
+        yield crawler(name = "mr_roboto_1", location = "-1,-1", goal = "None")
         #yield crawler(name = "mr_roboto_2", location = "0,0", goal = "None")
 
         for i in range(il):
@@ -239,6 +246,8 @@ class Tkinter:
     def __init__(self, world):
         global bx
         global by
+        self.model = load_model("modelfit.h5")
+        self.image_paths = glob.glob("image_data/*.jpg")
         self.rx_old = 0
         self.ry_old = 0
         self.stop_simu = False
@@ -299,7 +308,7 @@ class Tkinter:
         self.labelbsizexy = tk.Label(textvariable=self.message_to_user_bsizexy)
         self.labelrpos = tk.Label(textvariable=self.message_to_user_rpos)
         self.labelrposxy = tk.Label(textvariable=self.message_to_user_rposxy)
-        load = Image.open('birdpoops.png')
+        load = Image.open('init.png')
         resized = load.resize((128, 128),Image.ANTIALIAS)
         render = ImageTk.PhotoImage(resized)
         self.labelimg = tk.Label(image=render)
@@ -338,6 +347,11 @@ class Tkinter:
             self.height = 320
         if self.lenght < 570:
             self.lenght = 570
+        load = Image.open('init.png')
+        resized = load.resize((128, 128),Image.ANTIALIAS)
+        render = ImageTk.PhotoImage(resized)
+        self.labelimg = tk.Label(image=render)
+        self.labelimg.image = render # Keep a reference
         self.top_gemometry(self.lenght, self.height, self.top)
         self.canvas.place(bordermode=tk.OUTSIDE, height=30 * by,
                           width=30 * bx, x=self.lenght-(self.button_lenght*2+30*
@@ -585,6 +599,29 @@ class Tkinter:
                                              fill="#04ff00", width = 3)
             update_window = False
 
+    def update_picture(self):
+        global get_picture
+        if get_picture:
+            n_images = len(self.image_paths)
+            ran = np.random.randint(0,n_images)
+            load = Image.open(self.image_paths[ran])
+            resized = load.resize((128, 128),Image.ANTIALIAS)
+            render = ImageTk.PhotoImage(resized)
+            self.labelimg = tk.Label(image=render)
+            self.labelimg.image = render # Keep a reference
+            self.labelimg.place(bordermode=tk.OUTSIDE, height=self.button_height*3,
+                                width=self.button_lenght*2,
+                                x=self.space,
+                                y=self.height-self.space*2-self.button_height*4)
+            poop = get_poop.get_poop(self.model, ran, self.image_paths)
+            if poop is 1:
+                self.message_to_user_preres.set("Birdpoop")
+            else:
+                self.message_to_user_preres.set("No birdpoop")
+
+            get_picture =  False
+
+
 class run_world (threading.Thread):
     def __init__(self, world, Tkinter):
         threading.Thread.__init__(self)
@@ -618,6 +655,7 @@ update_robot = False
 update_window = False
 wx = 0
 wy = 0
+get_picture = False
 
 
 # pyknow init
@@ -638,6 +676,7 @@ while True:
     update_dirt = False
     update_robot = False
     update_window = False
+    get_picture = False
     Tkinter.rx_old = rx
     Tkinter.ry_old = ry
     Tkinter.end_all = False
@@ -650,6 +689,7 @@ while True:
     # Thread
 
     while True:
+        Tkinter.update_picture()
         Tkinter.map_update()
         try:
             Tkinter.top.update()
