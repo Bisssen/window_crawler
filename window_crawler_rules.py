@@ -350,6 +350,7 @@ class Tkinter:
         load = Image.open('init.png')
         resized = load.resize((128, 128),Image.ANTIALIAS)
         render = ImageTk.PhotoImage(resized)
+        self.labelimg.config(image='')
         self.labelimg = tk.Label(image=render)
         self.labelimg.image = render # Keep a reference
         self.top_gemometry(self.lenght, self.height, self.top)
@@ -477,7 +478,7 @@ class Tkinter:
     def dec_x(self):
         global bx
         global by
-        if bx > 1:
+        if bx > 2:
             bx = bx - 1
         self.message_to_user_bsizexy.set(str(bx)+" x "+str(by))
 
@@ -491,7 +492,7 @@ class Tkinter:
     def dec_y(self):
         global bx
         global by
-        if by > 1:
+        if by > 2:
             by = by - 1
         self.message_to_user_bsizexy.set(str(bx)+" x "+str(by))
 
