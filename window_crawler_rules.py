@@ -132,13 +132,16 @@ class system_control:
         TEST(lambda goal :  goal is "take_picture"))
     def take_picture(self, craw, trans, location):
         #print("Taking picture at " + location)
+        global wasted_movement
         if trans is "dirty":
             self.modify(craw, goal="clean")
             #print("Window is dirty")
             global get_picture
+            wasted_movement -= 1
             get_picture = True
             time.sleep(1)
         else:
+            wasted_movement += 1
             self.modify(craw, goal="None")
             #print("Window is clean")
 
@@ -196,11 +199,12 @@ class move:
                 abs(split(craw_loc,1) - split(win_loc,1)) > 1):
                 print("ERROR-------------------------------"
                       "------------------------------------")
-            global rx, ry, robot_moved, update_robot
+            global rx, ry, robot_moved, update_robot, steps
             rx = split(win_loc, 0)
             ry = split(win_loc, 1)
             robot_moved = True
             update_robot = True
+            steps += 1
 
 class clean_windows(KnowledgeEngine, move, system_control):
 
@@ -277,6 +281,8 @@ class Tkinter:
         self.message_to_user_bsizexy.set(str(bx)+" x "+str(by))
         self.message_to_user_rpos = tk.StringVar()
         self.message_to_user_rpos.set("Robot Pos:")
+        self.message_to_user_miss = tk.StringVar()
+        self.message_to_user_miss.set("Walked on clean windows: 0")
         self.message_to_user_rposxy = tk.StringVar()
         self.message_to_user_rposxy.set("("+str(0)+","+str(0)+")")
         self.message_to_user_lp = tk.StringVar()
@@ -284,7 +290,7 @@ class Tkinter:
         self.message_to_user_pre = tk.StringVar()
         self.message_to_user_pre.set("Predicted:")
         self.message_to_user_preres = tk.StringVar()
-        self.message_to_user_preres.set("Birdpoop")
+        self.message_to_user_preres.set("None")
         self.button_text_1 = tk.StringVar()
         self.button_text_1.set("Start")
         self.button_text_2 = tk.StringVar()
@@ -306,13 +312,12 @@ class Tkinter:
         self.label = tk.Label(textvariable=self.message_to_user)
         self.labelbsize = tk.Label(textvariable=self.message_to_user_bsize)
         self.labelbsizexy = tk.Label(textvariable=self.message_to_user_bsizexy)
-        self.labelrpos = tk.Label(textvariable=self.message_to_user_rpos)
+        self.labelrpos = tk.Label(textvariable=self.message_to_user_rpos,
+                                  justify=tk.LEFT)
+        self.labelmiss = tk.Label(textvariable=self.message_to_user_miss,
+                                  justify=tk.LEFT)
         self.labelrposxy = tk.Label(textvariable=self.message_to_user_rposxy)
-        load = Image.open('init.png')
-        resized = load.resize((128, 128),Image.ANTIALIAS)
-        render = ImageTk.PhotoImage(resized)
-        self.labelimg = tk.Label(image=render)
-        self.labelimg.image = render # Keep a reference
+        self.labelimg = tk.Label(image='')
         self.labellp = tk.Label(textvariable=self.message_to_user_lp)
         self.labelpre = tk.Label(textvariable=self.message_to_user_pre)
         self.labelpreres = tk.Label(textvariable=self.message_to_user_preres)
@@ -347,12 +352,9 @@ class Tkinter:
             self.height = 320
         if self.lenght < 570:
             self.lenght = 570
-        load = Image.open('init.png')
-        resized = load.resize((128, 128),Image.ANTIALIAS)
-        render = ImageTk.PhotoImage(resized)
         self.labelimg.config(image='')
-        self.labelimg = tk.Label(image=render)
-        self.labelimg.image = render # Keep a reference
+        self.labelimg = tk.Label(image='')
+        self.message_to_user_preres.set("None")
         self.top_gemometry(self.lenght, self.height, self.top)
         self.canvas.place(bordermode=tk.OUTSIDE, height=30 * by,
                           width=30 * bx, x=self.lenght-(self.button_lenght*2+30*
@@ -414,14 +416,14 @@ class Tkinter:
                             width=self.button_lenght,
                             x=self.space,
                             y=self.height-self.space-self.button_height)
-        self.labellp.place(bordermode=tk.OUTSIDE, height=self.button_height,
-                           width=self.button_lenght,
-                           x=self.space,
-                           y=self.height-self.space*3-self.button_height*5)
         self.labelimg.place(bordermode=tk.OUTSIDE, height=self.button_height*3,
                             width=self.button_lenght*2,
                             x=self.space,
                             y=self.height-self.space*2-self.button_height*4)
+        self.labellp.place(bordermode=tk.OUTSIDE, height=self.button_height,
+                           width=self.button_lenght,
+                           x=self.space,
+                           y=self.height-self.space*3-self.button_height*5)
         self.labelrposxy.place(bordermode=tk.OUTSIDE, height=self.button_height,
                                width=self.button_lenght/2,
                                x=self.space+self.button_lenght,
@@ -430,6 +432,10 @@ class Tkinter:
                              width=self.button_lenght,
                              x=self.space,
                              y=self.space*2+self.button_height)
+        self.labelmiss.place(bordermode=tk.OUTSIDE, height=self.button_height/2,
+                             width=self.button_lenght*2+self.space*6,
+                             x=self.space*2,
+                             y=self.space+self.button_height*2)
         self.labelbsizexy.place(bordermode=tk.OUTSIDE, height=self.button_height,
                                 width=self.button_lenght/2,
                                 x=self.space+self.button_lenght,
@@ -657,7 +663,8 @@ update_window = False
 wx = 0
 wy = 0
 get_picture = False
-
+wasted_movement = 0
+steps = 0
 
 # pyknow init
 world = clean_windows()
@@ -667,6 +674,9 @@ Tkinter.rx_old = rx
 Tkinter.ry_old = ry
 
 while True:
+    steps = 0
+    old_move = 0
+    wasted_movement = 0
     Tkinter.update_tkinter()
     rx = 0
     ry = 0
@@ -690,6 +700,11 @@ while True:
     # Thread
 
     while True:
+        if old_move < wasted_movement:
+            old_move = wasted_movement
+        Tkinter.message_to_user_miss.set("Walked on clean windows: " +
+                                         str(old_move)+ " " +
+                                         str(steps))
         Tkinter.update_picture()
         Tkinter.map_update()
         try:
