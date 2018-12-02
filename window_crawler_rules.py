@@ -71,7 +71,7 @@ class system_control:
         TEST(lambda goal : goal is "None"))
     def update_goal(self, rout, path, end_point, craw_loc, craw,
                          map, pre_rou, trans, name):
-        global drop_route
+        global drop_route, reset_simu_global
         if drop_route:
             self.modify(rout, end_point="0,0", path="None",
                         preplanned_route=["going_home"])
@@ -90,6 +90,7 @@ class system_control:
                     print(utils.unfreeze(trans))
                     print("Ones are open windows")
                     print(utils.unfreeze(map))
+                    reset_simu_global = True
                     #print("Robot done")
                 else:
                     temp = utils.unfreeze(pre_rou)[0]
@@ -109,6 +110,7 @@ class system_control:
                     print(utils.unfreeze(trans))
                     print("Ones are open windows")
                     print(utils.unfreeze(map))
+                    reset_simu_global = True
                     #print("Robot done")
                 else:
                     temp = utils.unfreeze(pre_rou)[0]
@@ -702,6 +704,7 @@ wy = 0
 get_picture = False
 wasted_movement = 0
 steps = 0
+reset_simu_global = False
 
 # pyknow init
 world = clean_windows()
@@ -725,6 +728,7 @@ while True:
     update_robot = False
     update_window = False
     get_picture = False
+    reset_simu_global = False
     Tkinter.rx_old = rx
     Tkinter.ry_old = ry
     Tkinter.end_all = False
@@ -759,7 +763,7 @@ while True:
             Tkinter.end_all = True
             break
 
-        if Tkinter.reset_simu:
+        if Tkinter.reset_simu or reset_simu_global:
             Tkinter.end_all = True
             break
 
