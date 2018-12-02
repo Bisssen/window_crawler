@@ -10,6 +10,7 @@ from PIL import ImageTk, Image
 import os
 from keras.models import load_model
 import glob
+import math
 
 
 def split(A, num):
@@ -68,7 +69,7 @@ class system_control:
                          preplanned_route=MATCH.pre_rou,
                          transparency_map=MATCH.trans),
         TEST(lambda goal : goal is "None"))
-    def update_goal_none(self, rout, path, end_point, craw_loc, craw,
+    def update_goal(self, rout, path, end_point, craw_loc, craw,
                          map, pre_rou, trans, name):
         global drop_route
         if drop_route:
@@ -223,9 +224,39 @@ class clean_windows(KnowledgeEngine, move, system_control):
         map_draw_dirt = map_trans
         yield crawler(name = "mr_roboto_1", location = "-1,-1", goal = "None")
         #yield crawler(name = "mr_roboto_2", location = "0,0", goal = "None")
+        # Spiral
+        for i in range(math.ceil(il/2)):
+            countx = 0
+            county = 0
+            countx2 = il-1
+            county2 = ij-1
 
+            if i == 0:
+                preplanned_route.append(str(countx+i)+","+str(county))
+            else:
+                preplanned_route.append(str(countx+i)+","+str(county+i-1))
+                
+            for j in range(county+i,county2-i):
+                preplanned_route.append(str(countx+i)+","+str(j))
+            
+            preplanned_route.append(str(countx+i)+","+str(county2-i))
+            for j in range(countx+i+1,countx2-i):
+                preplanned_route.append(str(j)+","+str(county2-i))
+            
+            preplanned_route.append(str(countx2-i)+","+str(county2-i))
+            for j in range(county2-i-1,county+i,-1):
+                preplanned_route.append(str(countx2-i)+","+str(j))
+                
+            preplanned_route.append(str(countx2-i)+","+str(county+i))
+            for j in range(countx2-i-1,countx+i+1,-1):
+                preplanned_route.append(str(j)+","+str(county+i))
+        if il%2 == 1:
+            if ij%2 == 1:
+                preplanned_route = preplanned_route[:-2]
+            else:
+                preplanned_route = preplanned_route[:-3]
         for i in range(il):
-            for j in range(ij):
+             for j in range(ij):
                 if np.random.randint(0,3) is 1:
                     if i is 0 and j is 0:
                         yield window(location = str(i) + "," + str(j))
@@ -234,14 +265,20 @@ class clean_windows(KnowledgeEngine, move, system_control):
                     yield window(location = str(i) + "," + str(j), state="open")
                 else:
                     yield window(location = str(i) + "," + str(j))
+                # Back and forth
+                '''
                 if i%2 > 0:
                     preplanned_route.append(str(i)+","+str((ij-1)-j))
                 else:
                     preplanned_route.append(str(i)+","+str(j))
-        print(map_temp)
+                '''
+
+
+
+        #print(preplanned_route)
         yield route(path = "None", end_point = preplanned_route.pop(0),
                     world_map=map_temp, transparency_map=map_trans, 
-                    preplanned_route=preplanned_route)
+                    preplanned_route=preplanned_route[1:])
 
 # ^^^^^ PYKNOW ^^^^
 # VVVVV UI VVVVVVVV

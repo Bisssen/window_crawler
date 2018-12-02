@@ -26,7 +26,7 @@ def astar(transparency, maze, start, end):
     if end[0] is 0 and end[1] is 0:
         timeout = 20
     else:
-        timeout = 1
+        timeout = 2
     lim = time.time() + timeout
     # Create start and end node
     start_node = Node(None, start)
