@@ -227,6 +227,7 @@ class clean_windows(KnowledgeEngine, move, system_control):
         yield crawler(name = "mr_roboto_1", location = "-1,-1", goal = "None")
         #yield crawler(name = "mr_roboto_2", location = "0,0", goal = "None")
         # Spiral
+        '''
         for i in range(math.ceil(il/2)):
             countx = 0
             county = 0
@@ -257,6 +258,7 @@ class clean_windows(KnowledgeEngine, move, system_control):
                 preplanned_route = preplanned_route[:-2]
             else:
                 preplanned_route = preplanned_route[:-3]
+        '''
         for i in range(il):
              for j in range(ij):
                 if np.random.randint(0,3) is 1:
@@ -268,12 +270,10 @@ class clean_windows(KnowledgeEngine, move, system_control):
                 else:
                     yield window(location = str(i) + "," + str(j))
                 # Back and forth
-                '''
                 if i%2 > 0:
                     preplanned_route.append(str(i)+","+str((ij-1)-j))
                 else:
                     preplanned_route.append(str(i)+","+str(j))
-                '''
 
 
 
@@ -530,7 +530,7 @@ class Tkinter:
     def inc_x(self):
         global bx
         global by
-        if bx < 20:
+        if bx < 35:
             bx = bx + 1
         self.message_to_user_bsizexy.set(str(bx)+" x "+str(by))
 
@@ -544,7 +544,7 @@ class Tkinter:
     def inc_y(self):
         global bx
         global by
-        if by < 20:
+        if by < 25:
             by = by + 1
         self.message_to_user_bsizexy.set(str(bx)+" x "+str(by))
 
@@ -687,8 +687,8 @@ class run_world (threading.Thread):
 # Globals:  :(
 a_calculating = False
 drop_route = False
-bx = 10
-by = 10
+bx = 35
+by = 25
 robot_moved = False
 rx = 0
 ry = 0
