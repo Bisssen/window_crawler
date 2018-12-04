@@ -18,26 +18,35 @@ def split(A, num):
 
 def a_star(start, end, map, trans):
     global a_calculating
+    # Split the start and end strings into x and y coordinates
     endx = split(end, 0)
     endy = split(end, 1)
     startx = split(start, 0)
     starty = split(start, 1)
+    # Make sure that the end point is not outside the map
     if endx >= len(map):
         endx = len(map)-1
     if endy >= len(map[0]):
         endy = len(map[0])-1
     path_string = ""
+    # Check if the end point is an open window
     if utils.unfreeze(map)[endx][endy] is 1.0:
         return "no_route"
+    # For the UI
     a_calculating = True
+    # Calculate path to end point
     path = ProjectAstar.astar(utils.unfreeze(trans), utils.unfreeze(map),
                               (startx, starty), (endx, endy))
+    # For the UI
     a_calculating = False
+    # Convert the path into a string
     try:
         for i in range(len(path)):
             if i is 0:
                 continue
             path_string += str(path[i][0]) + "," + str(path[i][1]) + "$"
+    # If this is not possible then it is because there is nothing returned
+    # meaning that there is no route to the goal
     except:
         return "no_route"
     return path_string[:-1]
@@ -71,109 +80,71 @@ class system_control:
         TEST(lambda goal : goal is "None"))
     def update_goal(self, rout, path, end_point, craw_loc, craw,
                          map, pre_rou, trans, name):
+        # For communication to the UI
         global drop_route, reset_simu_global
+        # UI button "Go home" is clicked causing the rule to drop
+        # the preplanned route and go home
         if drop_route:
             self.modify(rout, end_point="0,0", path="None",
                         preplanned_route=["going_home"])
-            print("Forced to go home")
             drop_route = False
+        # There is no path meaning a new path have to be calculated
         elif path is "None":
+            # Path getting calculated
             route = a_star(craw_loc, end_point, map, trans)
+            # A location on preplanned route is reached
             if len(route) is 0:
+                # There is no more points in preplanned route and
+                # the crawler is therefore done
                 if len(utils.unfreeze(pre_rou)) < 1:
                     self.modify(rout, end_point="0,0", path="None",
                                 preplanned_route=["going_home"])
-                    #print("Going home")
+                # The crawler have made it home after being done
                 elif pre_rou[0] is "going_home":
                     self.modify(rout, path=route)
-                    print("Ones are dirty windows")
-                    print(utils.unfreeze(trans))
-                    print("Ones are open windows")
-                    print(utils.unfreeze(map))
+                    # Auto reset simulation
                     reset_simu_global = True
-                    #print("Robot done")
+                # Update preplanned route
                 else:
                     temp = utils.unfreeze(pre_rou)[0]
                     temp2 = utils.unfreeze(pre_rou)[1:]
                     self.modify(rout, end_point=temp, path="None",
                                 preplanned_route=temp2)
-                    #print("Reached subgoal")
-                    
+            # A location on preplanned route is reached
             elif route is "no_route":
+                # There is no more points in preplanned route and
+                # the crawler is therefore done
                 if len(utils.unfreeze(pre_rou)) < 1:
                     self.modify(rout, end_point="0,0", path="None",
                                 preplanned_route=["going_home"])
-                    #print("Going home")
+                # The crawler have made it home after being done
                 elif pre_rou[0] is "going_home":
                     self.modify(rout, path=route)
-                    print("Ones are dirty windows")
-                    print(utils.unfreeze(trans))
-                    print("Ones are open windows")
-                    print(utils.unfreeze(map))
+                    # Auto reset simulation
                     reset_simu_global = True
-                    #print("Robot done")
+                # Update preplanned route
                 else:
                     temp = utils.unfreeze(pre_rou)[0]
                     temp2 = utils.unfreeze(pre_rou)[1:]
                     self.modify(rout, end_point=temp, path="None",
                                 preplanned_route=temp2)
-                    #print("No route to goal found")
+            # Update the Path with the new path
             else:
                 self.modify(rout, path=route)
-                #print("Calculated path")
+        # The path is not done yet.
+        # Give the crawler its next subgoal
         else:
             self.modify(craw, goal=path.split("$",1)[0])
             try:
+                # There is still more path left
                 path = path.split("$",1)[1]
                 self.modify(rout, path=path)
             except:
+                # There is no more path left
                 self.modify(rout, path="None")
 
-    @Rule(
-        AS.craw << crawler(goal=MATCH.goal, location=MATCH.location),
-        window(transparency=MATCH.trans, location=MATCH.location),
-        TEST(lambda goal :  goal is "take_picture"))
-    def take_picture(self, craw, trans, location):
-        #print("Taking picture at " + location)
-        global wasted_movement
-        if trans is "dirty":
-            self.modify(craw, goal="clean")
-            #print("Window is dirty")
-            global get_picture
-            wasted_movement -= 1
-            get_picture = True
-            time.sleep(1)
-        else:
-            wasted_movement += 1
-            self.modify(craw, goal="None")
-            #print("Window is clean")
-
-    @Rule(
-        AS.craw << crawler(goal=MATCH.goal, location=MATCH.location),
-        AS.rout << route(transparency_map=MATCH.tran,
-                         preplanned_route=MATCH.pre_rou),
-        AS.win << window(transparency=MATCH.trans, location=MATCH.location),
-        TEST(lambda goal : goal is "clean"))
-    def clean_window(self, craw, win, tran, location, rout, pre_rou):
-        global update_dirt, dx, dy
-        temp_rou = utils.unfreeze(pre_rou)
-        try:
-            temp_rou.remove(location)
-            #print("Removing " + location + " from route")
-        except:
-            pass
-        self.modify(craw, goal="take_picture")
-        self.modify(win, transparency="clean")
-        map_tran = utils.unfreeze(tran)
-        map_tran[split(location,0)][split(location,1)] = 0.0
-        self.modify(rout, transparency_map=map_tran, preplanned_route=temp_rou)
-        #print("Cleaning window")  
-        update_dirt = True
-        dx = split(location, 0)
-        dy = split(location, 1)
-
             
-class move:
+class crawler:
     @Rule(
         AS.rout << route(world_map=MATCH.map, end_point=MATCH.end_point),
         window(location=MATCH.win_loc, state=MATCH.state),
@@ -183,25 +154,23 @@ class move:
              not craw_loc == win_loc))
     def move_to_location(self, win_loc, craw, craw_loc, state, rout, map,
                          end_point, name):
+        # Window is open
         if state is "open":
             map_temp = utils.unfreeze(map)
             map_temp[split(win_loc,0)][split(win_loc,1)] = 1.0
+            # Update world map and scrap current Path
             self.modify(rout, path="None", world_map=map_temp)
+            # Get new path
             self.modify(craw, goal="None")
-            #print("Window is open. Cannot move to next window")
+            # UI
             global wx, wy, update_window
             wx = split(win_loc, 0)
             wy = split(win_loc, 1)
             update_window = True
         else:
+            # Move crawler and take a picture
             self.modify(craw, location=win_loc, goal="take_picture")
-            print("Moving from " + str(craw_loc) + " to " + str(win_loc) +
-                  " End point is: " + str(end_point))
-            print("By " +str(name))
-            if (abs(split(craw_loc,0) - split(win_loc,0)) > 1 or
-                abs(split(craw_loc,1) - split(win_loc,1)) > 1):
-                print("ERROR-------------------------------"
-                      "------------------------------------")
+            # UI
             global rx, ry, robot_moved, update_robot, steps
             rx = split(win_loc, 0)
             ry = split(win_loc, 1)
@@ -209,7 +178,57 @@ class move:
             update_robot = True
             steps += 1
 
-class clean_windows(KnowledgeEngine, move, system_control):
+
+    @Rule(
+        AS.craw << crawler(goal=MATCH.goal, location=MATCH.location),
+        AS.rout << route(transparency_map=MATCH.tran,
+                         preplanned_route=MATCH.pre_rou),
+        window(transparency=MATCH.trans, location=MATCH.location),
+        TEST(lambda goal :  goal is "take_picture"))
+    def take_picture(self, craw, trans, location, tran, pre_rou, rout):
+        global wasted_movement
+        if trans is "dirty":
+            # Trigger clean window rule
+            self.modify(craw, goal="clean")
+            # UI
+            global get_picture
+            wasted_movement -= 1
+            get_picture = True
+            time.sleep(1)
+        else:
+            # Remove the window from preplanned route since it is now clean
+            temp_rou = utils.unfreeze(pre_rou)
+            try:
+                temp_rou.remove(location)
+            except:
+                pass
+            # Update transparency map and preplanned route
+            map_tran = utils.unfreeze(tran)
+            map_tran[split(location,0)][split(location,1)] = 0.0
+            self.modify(rout, transparency_map=map_tran, preplanned_route=temp_rou)
+            # The window is clean get new subgoal for robot
+            self.modify(craw, goal="None")
+            # UI
+            wasted_movement += 1
+
+
+    @Rule(
+        AS.craw << crawler(goal=MATCH.goal, location=MATCH.location),
+        AS.win << window(transparency=MATCH.trans, location=MATCH.location),
+        TEST(lambda goal : goal is "clean"))
+    def clean_window(self, craw, win, location):
+        global update_dirt, dx, dy
+        # Take another picture to insure the window is clean
+        self.modify(craw, goal="take_picture")
+        # Update the window to clean, since the crawler cleaned it
+        self.modify(win, transparency="clean")
+        # UI 
+        update_dirt = True
+        dx = split(location, 0)
+        dy = split(location, 1)
+
+
+class clean_windows(KnowledgeEngine, crawler, system_control):
 
     @DefFacts()
     def startup(self):
@@ -218,14 +237,15 @@ class clean_windows(KnowledgeEngine, move, system_control):
         global map_draw
         global map_draw_dirt
         preplanned_route = []
+        # Get building size from UI
         il = by
         ij = bx
         map_temp = np.zeros([il,ij]).tolist()
-        map_draw = np.zeros([il,ij]).tolist()
         map_trans = np.ones([il,ij]).tolist()
+        # UI
+        map_draw = np.zeros([il,ij]).tolist()
         map_draw_dirt = map_trans
-        yield crawler(name = "mr_roboto_1", location = "-1,-1", goal = "None")
-        #yield crawler(name = "mr_roboto_2", location = "0,0", goal = "None")
+        yield crawler(name = "mr_roboto", location = "-1,-1", goal = "None")
         # Spiral
         '''
         for i in range(math.ceil(il/2)):
@@ -259,12 +279,15 @@ class clean_windows(KnowledgeEngine, move, system_control):
             else:
                 preplanned_route = preplanned_route[:-3]
         '''
+        # Create windows
         for i in range(il):
              for j in range(ij):
+                # Have 1/3 of them be open
                 if np.random.randint(0,3) is 1:
                     if i is 0 and j is 0:
                         yield window(location = str(i) + "," + str(j))
-                        continue    
+                        continue
+                    # UI
                     map_draw[i][j] = 1
                     yield window(location = str(i) + "," + str(j), state="open")
                 else:
@@ -275,9 +298,6 @@ class clean_windows(KnowledgeEngine, move, system_control):
                 else:
                     preplanned_route.append(str(i)+","+str(j))
 
-
-
-        #print(preplanned_route)
         yield route(path = "None", end_point = preplanned_route.pop(0),
                     world_map=map_temp, transparency_map=map_trans, 
                     preplanned_route=preplanned_route[1:])
