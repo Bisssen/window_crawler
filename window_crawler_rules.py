@@ -65,7 +65,7 @@ class crawler(Fact):
 class route(Fact):
     path = Field(str, mandatory=True)
     end_point = Field(str, mandatory=True)
-    world_map = Field(list, mandatory=True)
+    window_map = Field(list, mandatory=True)
     transparency_map = Field(list, mandatory=True)
     preplanned_route = Field(list, mandatory=True)
 
@@ -74,7 +74,7 @@ class system_control:
         AS.craw << crawler(goal=MATCH.goal, location=MATCH.craw_loc,
                            name=MATCH.name),
         AS.rout << route(path=MATCH.path, end_point=MATCH.end_point,
-                         world_map=MATCH.map,
+                         window_map=MATCH.map,
                          preplanned_route=MATCH.pre_rou,
                          transparency_map=MATCH.trans),
         TEST(lambda goal : goal is "None"))
@@ -144,9 +144,9 @@ class system_control:
                 self.modify(rout, path="None")
 
             
-class crawler:
+class crawler_movement:
     @Rule(
-        AS.rout << route(world_map=MATCH.map, end_point=MATCH.end_point),
+        AS.rout << route(window_map=MATCH.map, end_point=MATCH.end_point),
         window(location=MATCH.win_loc, state=MATCH.state),
         AS.craw << crawler(name=MATCH.name, goal=MATCH.goal_loc,
                            location=MATCH.craw_loc),
@@ -159,7 +159,7 @@ class crawler:
             map_temp = utils.unfreeze(map)
             map_temp[split(win_loc,0)][split(win_loc,1)] = 1.0
             # Update world map and scrap current Path
-            self.modify(rout, path="None", world_map=map_temp)
+            self.modify(rout, path="None", window_map=map_temp)
             # Get new path
             self.modify(craw, goal="None")
             # UI
@@ -228,7 +228,7 @@ class crawler:
         dy = split(location, 1)
 
 
-class clean_windows(KnowledgeEngine, crawler, system_control):
+class clean_windows(KnowledgeEngine, crawler_movement, system_control):
 
     @DefFacts()
     def startup(self):
@@ -299,7 +299,7 @@ class clean_windows(KnowledgeEngine, crawler, system_control):
                     preplanned_route.append(str(i)+","+str(j))
 
         yield route(path = "None", end_point = preplanned_route.pop(0),
-                    world_map=map_temp, transparency_map=map_trans, 
+                    window_map=map_temp, transparency_map=map_trans, 
                     preplanned_route=preplanned_route[1:])
 
 # ^^^^^ PYKNOW ^^^^
